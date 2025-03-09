@@ -79,6 +79,7 @@ public class UsuarioService {
         for(Document doc : datos) {
             doc.put("_id", doc.getObjectId("_id").toHexString());
             listaDatos.add(doc);
+            
         }
         
         return Response.ok(listaDatos).build();
