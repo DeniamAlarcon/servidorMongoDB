@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- Appender para la consola -->
+    <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Appender para archivo de logs -->
+    <appender name="file" class="ch.qos.logback.core.FileAppender">
+        <file>logs/app.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Configuración de loggers -->
+    <logger name="com.example" level="DEBUG"/>
+
+    <!-- Root logger -->
+    <root level="ERROR">
+        <appender-ref ref="console"/>
+        <appender-ref ref="file"/>
+    </root>
+
+</configuration>

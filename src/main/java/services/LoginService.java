@@ -9,6 +9,8 @@ import com.mongodb.client.MongoDatabase;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import java.util.Calendar;
+import java.util.Date;
 import org.bson.Document;
 import utils.JWTUtils;
 import utils.MongoDBUtil;
@@ -26,35 +28,86 @@ public class LoginService {
     @Produces(MediaType.APPLICATION_JSON)
     public Response login(UserCredentials credentials) {
         try {
-            //obtener la base de datos cenralizada
+            // Obtener la base de datos centralizada
             MongoDatabase database = MongoDBUtil.getDatabase("usuarios");
             MongoCollection<Document> userCollection = database.getCollection("users");
 
-            //Buscar el usuario en la base de datos
-            Document user = userCollection.find(new Document("correo", credentials.getCorreo())
-                    .append("password", credentials.getPassword())).first();
+            // Buscar el usuario en la base de datos
+            Document user = userCollection.find(new Document("correo", credentials.getCorreo())).first();
 
             if (user != null) {
-                //Obtener la base de datos asignada a este usuario
-                String userDatabase = user.getString("baseDatos");
+                // Verificar si la cuenta está bloqueada
+                Date bloqueadoHasta = user.getDate("bloqueadoHasta");
+                if (bloqueadoHasta != null && bloqueadoHasta.after(new Date())) {
+                    Respuestas respuesta = new Respuestas("error", "ACCOUNT_BLOCKING", "Cuenta bloqueada. Intenta de nuevo después de 30 minutos.", 403);
+                    return Response.status(Response.Status.FORBIDDEN)
+                            .entity(respuesta)
+                            .build();
+                }
 
-                //Genear el token con la base de datos del usuario
-                String token = JWTUtils.generarToken(credentials.getCorreo(), userDatabase);
+                // Verificar la contraseña
+                if (validarContrasenia(credentials.getPassword(), user.getString("password"))) {
+                    // Reseteamos los intentos fallidos si la contraseña es correcta
+                    userCollection.updateOne(new Document("correo", credentials.getCorreo()),
+                            new Document("$set", new Document("intentosFallidos", 0).append("bloqueadoHasta", null)));
 
-                //Respuesta con el token
-                return Response.ok(new Document("token", token).toJson()).build();
+                    // Obtener la base de datos asignada al usuario
+                    String userDatabase = user.getString("baseDatos");
 
+                    // Generar el token con la base de datos del usuario
+                    String token = JWTUtils.generarToken(credentials.getCorreo(), userDatabase);
+
+                    // Respuesta con el token
+                    return Response.ok(new Document("token", token).toJson()).build();
+                } else {
+                    // Si la contraseña es incorrecta, incrementamos el contador de intentos fallidos
+                    int intentosFallidos = user.getInteger("intentosFallidos", 0);
+                    intentosFallidos++;
+
+                    if (intentosFallidos >= 5) {
+                        // Bloquear la cuenta durante 30 minutos
+                        Calendar calendar = Calendar.getInstance();
+                        calendar.add(Calendar.MINUTE, 30);
+                        Date bloqueadoHastaFecha = calendar.getTime();
+
+                        userCollection.updateOne(new Document("correo", credentials.getCorreo()),
+                                new Document("$set", new Document("intentosFallidos", intentosFallidos)
+                                        .append("bloqueadoHasta", bloqueadoHastaFecha)));
+                        
+                        Respuestas respuesta = new Respuestas("error", "ACCOUNT_BLOCKING", "Cuenta bloqueada. Intenta de nuevo después de 30 minutos.", 403);
+                        return Response.status(Response.Status.FORBIDDEN)
+                                .entity(respuesta)
+                                .build();
+                    } else {
+                        // Actualizar el contador de intentos fallidos
+                        userCollection.updateOne(new Document("correo", credentials.getCorreo()),
+                                new Document("$set", new Document("intentosFallidos", intentosFallidos)));
+                        
+                        Respuestas respuesta = new Respuestas("error", "ACCOUNT_PRECAUTION", "Credenciales inválidas. Intentos restantes: " + (5 - intentosFallidos), 401);
+                        return Response.status(Response.Status.UNAUTHORIZED)
+                                .entity(respuesta)
+                                .build();
+                    }
+                }
             } else {
+                Respuestas respuesta = new Respuestas("error", "ACCOUNT_PRECAUTION", "Credenciales inválidas", 401);
                 return Response.status(Response.Status.UNAUTHORIZED)
-                        .entity(new Document("error", "Credenciales invalidas"))
+                        .entity(respuesta)
                         .build();
             }
         } catch (Exception e) {
             e.printStackTrace();
+            Respuestas respuesta = new Respuestas("error", "INTERNAL_SERVER_ERROR", "Error en el servidor", 500);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity(new Document("error","error en el servidor").toJson())
+                    .entity(respuesta)
                     .build();
         }
+    }
+
+    // Método para validar la contraseña (suponiendo que usas algún método de comparación)
+    private boolean validarContrasenia(String contrasenia, String hashedPassword) {
+        // Implementar la validación de la contraseña, por ejemplo, comparando el hash de las contraseñas
+        return contrasenia.equals(hashedPassword); // Esto es solo un ejemplo
     }
 
     public static class UserCredentials {
@@ -77,6 +130,5 @@ public class LoginService {
         public void setPassword(String password) {
             this.password = password;
         }
-
     }
 }

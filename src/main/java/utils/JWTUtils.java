@@ -7,6 +7,8 @@ package utils;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.exceptions.JWTVerificationException;
+import com.auth0.jwt.exceptions.TokenExpiredException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import java.util.Date;
 
@@ -15,9 +17,10 @@ import java.util.Date;
  * @author deni
  */
 public class JWTUtils {
-    private static final String SECRET_KEY ="DsAA2810";
+
+    private static final String SECRET_KEY = "DsAA2810";
     private static final long EXPIRATION_TIME = 86400000; //1 dia de expiracion
-    
+
     //Generar token JWT
     public static String generarToken(String usuario, String baseDatos) {
         return JWT.create()
@@ -27,16 +30,20 @@ public class JWTUtils {
                 .withExpiresAt(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
                 .sign(Algorithm.HMAC256(SECRET_KEY));
     }
-    
-    //Verificar token JWT y obtner la base de datos asociada
-    public static String obtenerBaseDeDatosDesdeToken(String token){
+
+    // Verificar token JWT y obtener la base de datos asociada
+    public static String obtenerBaseDeDatosDesdeToken(String token) {
         try {
+            // Verificar el token JWT usando la clave secreta
             JWTVerifier verifier = JWT.require(Algorithm.HMAC256(SECRET_KEY)).build();
-            DecodedJWT jwt = verifier.verify(token);
+            DecodedJWT jwt = verifier.verify(token); // Decodifica y verifica el token
+
+            // Si no ha expirado, devolver la base de datos asociada
             return jwt.getClaim("baseDatos").asString();
-        } catch (Exception e) {
-            System.out.println("No verifico bien");
-            return null;
+        } catch (TokenExpiredException e) {
+            return "El token ha expirado.";
+        } catch (JWTVerificationException e) {
+            return "Token inválido o mal formado: " + e.getMessage();
         }
     }
 }
