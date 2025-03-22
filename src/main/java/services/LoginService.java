@@ -11,6 +11,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import org.bson.Document;
 import utils.JWTUtils;
 import utils.MongoDBUtil;
@@ -54,11 +55,20 @@ public class LoginService {
                     // Obtener la base de datos asignada al usuario
                     String userDatabase = user.getString("baseDatos");
 
+                    // Obtener los roles del usuario
+                    List<Document> roles = (List<Document>) user.get("roles");
+
                     // Generar el token con la base de datos del usuario
                     String token = JWTUtils.generarToken(credentials.getCorreo(), userDatabase);
 
-                    // Respuesta con el token
-                    return Response.ok(new Document("token", token).toJson()).build();
+                    // Crear la respuesta con el token, roles y correo
+                    Document response = new Document();
+                    response.append("token", token);
+                    response.append("roles", roles);
+                    response.append("correo", credentials.getCorreo());
+
+                    // Respuesta con el token, roles y correo
+                    return Response.ok(response.toJson()).build();
                 } else {
                     // Si la contraseña es incorrecta, incrementamos el contador de intentos fallidos
                     int intentosFallidos = user.getInteger("intentosFallidos", 0);
@@ -73,7 +83,7 @@ public class LoginService {
                         userCollection.updateOne(new Document("correo", credentials.getCorreo()),
                                 new Document("$set", new Document("intentosFallidos", intentosFallidos)
                                         .append("bloqueadoHasta", bloqueadoHastaFecha)));
-                        
+
                         Respuestas respuesta = new Respuestas("error", "ACCOUNT_BLOCKING", "Cuenta bloqueada. Intenta de nuevo después de 30 minutos.", 403);
                         return Response.status(Response.Status.FORBIDDEN)
                                 .entity(respuesta)
@@ -82,7 +92,7 @@ public class LoginService {
                         // Actualizar el contador de intentos fallidos
                         userCollection.updateOne(new Document("correo", credentials.getCorreo()),
                                 new Document("$set", new Document("intentosFallidos", intentosFallidos)));
-                        
+
                         Respuestas respuesta = new Respuestas("error", "ACCOUNT_PRECAUTION", "Credenciales inválidas. Intentos restantes: " + (5 - intentosFallidos), 401);
                         return Response.status(Response.Status.UNAUTHORIZED)
                                 .entity(respuesta)
