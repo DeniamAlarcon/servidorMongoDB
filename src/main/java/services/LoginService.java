@@ -30,8 +30,8 @@ public class LoginService {
     public Response login(UserCredentials credentials) {
         try {
             // Obtener la base de datos centralizada
-            MongoDatabase database = MongoDBUtil.getDatabase("usuarios");
-            MongoCollection<Document> userCollection = database.getCollection("users");
+            MongoDatabase database = MongoDBUtil.getDatabase("RYU");
+            MongoCollection<Document> userCollection = database.getCollection("usuarios");
 
             // Buscar el usuario en la base de datos
             Document user = userCollection.find(new Document("correo", credentials.getCorreo())).first();

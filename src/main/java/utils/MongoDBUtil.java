@@ -19,7 +19,7 @@ public class MongoDBUtil {
 
     //private static final String URI = "mongodb+srv://deniamalarcon:7tCmAKDICg4AC0yg@tecnm.jneks.mongodb.net/?retryWrites=true&w=majority&appname=Tecnm";
     //private static final String URI = "mongodb://10.250.1.245:27017,10.250.1.252:27017,10.250.1.200:27017/?replicaSet=rs0&retryWrites=true&w=1&readPreference=primaryPreferred&connectTimeoutMS=3000&socketTimeoutMS=3000";
-    private static final String URI = "mongodb://192.168.1.85:27017,10.250.1.252:27017,192.168.1.80:27017/?replicaSet=rs0&retryWrites=true&w=1&readPreference=primaryPreferred&connectTimeoutMS=3000&socketTimeoutMS=3000";
+    private static final String URI = "mongodb://10.228.4.131:27017,10.228.15.250:27017,10.228.16.15:27017/?replicaSet=rs0&retryWrites=true&w=1&readPreference=primaryPreferred&connectTimeoutMS=3000&socketTimeoutMS=3000";
 
     private static MongoClient mongoClient;
 

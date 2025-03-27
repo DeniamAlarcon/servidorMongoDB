@@ -49,14 +49,20 @@ public class UsuarioService {
         String baseDatos = null;
         try {
             // Obtener token y validar
+            // Obtener token y la base de datos
             String token = headers.getHeaderString(HttpHeaders.AUTHORIZATION);
-            if (token == null || !token.startsWith("Bearer ")) {
+            if (token == null || token.isEmpty()) {
                 return Response.status(Response.Status.UNAUTHORIZED)
                         .entity(new Respuestas("error", "TOKEN_MISSING", "Falta el token", 401))
                         .build();
             }
 
-            baseDatos = JWTUtils.obtenerBaseDeDatosDesdeToken(token.substring(7));
+            // Si tiene "Bearer ", lo eliminamos
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7); // Quitamos "Bearer " para obtener solo el token
+            }
+
+            baseDatos = JWTUtils.obtenerBaseDeDatosDesdeToken(token);
             if (baseDatos == null || baseDatos.contains("expirado") || baseDatos.contains("inválido")) {
                 return Response.status(Response.Status.UNAUTHORIZED)
                         .entity(new Respuestas("error", "TOKEN_INVALIDO", "El token es inválido o ha expirado", 401))
@@ -166,13 +172,20 @@ public class UsuarioService {
 
         try {
             // Validación del token
+            // Obtener token y la base de datos
             String token = headers.getHeaderString(HttpHeaders.AUTHORIZATION);
-            if (token == null || !token.startsWith("Bearer ")) {
+            if (token == null || token.isEmpty()) {
                 return Response.status(Response.Status.UNAUTHORIZED)
-                        .entity(new Respuestas("error", "TOKEN_MISSING", "Falta el token", 401)).build();
+                        .entity(new Respuestas("error", "TOKEN_MISSING", "Falta el token", 401))
+                        .build();
             }
 
-            baseDatos = JWTUtils.obtenerBaseDeDatosDesdeToken(token.substring(7));
+            // Si tiene "Bearer ", lo eliminamos
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7); // Quitamos "Bearer " para obtener solo el token
+            }
+
+            baseDatos = JWTUtils.obtenerBaseDeDatosDesdeToken(token);
             if (baseDatos == null) {
                 return Response.status(Response.Status.UNAUTHORIZED)
                         .entity(new Respuestas("error", "BASE_DE_DATOS_NO_ENCONTRADA", "No se pudo obtener la base de datos", 401)).build();
@@ -280,13 +293,18 @@ public class UsuarioService {
         try {
             // Obtener token y la base de datos
             String token = headers.getHeaderString(HttpHeaders.AUTHORIZATION);
-            if (token == null || !token.startsWith("Bearer ")) {
+            if (token == null || token.isEmpty()) {
                 return Response.status(Response.Status.UNAUTHORIZED)
                         .entity(new Respuestas("error", "TOKEN_MISSING", "Falta el token", 401))
                         .build();
             }
 
-            baseDatos = JWTUtils.obtenerBaseDeDatosDesdeToken(token.substring(7));
+            // Si tiene "Bearer ", lo eliminamos
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7); // Quitamos "Bearer " para obtener solo el token
+            }
+
+            baseDatos = JWTUtils.obtenerBaseDeDatosDesdeToken(token);
             if (baseDatos == null) {
                 return Response.status(Response.Status.UNAUTHORIZED)
                         .entity(new Respuestas("error", "BASE_DE_DATOS_NO_ENCONTRADA", "No se pudo obtener la base de datos", 401))
@@ -374,13 +392,20 @@ public class UsuarioService {
 
         try {
             // Obtener token y la base de datos
+            // Obtener token y la base de datos
             String token = headers.getHeaderString(HttpHeaders.AUTHORIZATION);
-            if (token == null || !token.startsWith("Bearer ")) {
-                Respuestas respuesta = new Respuestas("error", "TOKEN_MISSING", "Falta el token", 401);
-                return Response.status(Response.Status.UNAUTHORIZED).entity(respuesta).build();
+            if (token == null || token.isEmpty()) {
+                return Response.status(Response.Status.UNAUTHORIZED)
+                        .entity(new Respuestas("error", "TOKEN_MISSING", "Falta el token", 401))
+                        .build();
             }
 
-            baseDatos = JWTUtils.obtenerBaseDeDatosDesdeToken(token.substring(7));
+            // Si tiene "Bearer ", lo eliminamos
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7); // Quitamos "Bearer " para obtener solo el token
+            }
+
+            baseDatos = JWTUtils.obtenerBaseDeDatosDesdeToken(token);
             if (baseDatos == null) {
                 Respuestas respuesta = new Respuestas("error", "BASE_DE_DATOS_NO_ENCONTRADA", "No se pudo obtener la base de datos", 401);
                 return Response.status(Response.Status.UNAUTHORIZED).entity(respuesta).build();
@@ -437,6 +462,8 @@ public class UsuarioService {
             Respuestas respuesta = new Respuestas("error", "INTERNAL_SERVER_ERROR", "Ocurrió un error al actualizar el documento", 500);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(respuesta).build();
         }
+        
+        
     }
 
     @DELETE
@@ -456,13 +483,20 @@ public class UsuarioService {
 
         try {
             // Obtener token y la base de datos
+            // Obtener token y la base de datos
             String token = headers.getHeaderString(HttpHeaders.AUTHORIZATION);
-            if (token == null || !token.startsWith("Bearer ")) {
-                Respuestas respuesta = new Respuestas("error", "TOKEN_MISSING", "Falta el token", 401);
-                return Response.status(Response.Status.UNAUTHORIZED).entity(respuesta).build();
+            if (token == null || token.isEmpty()) {
+                return Response.status(Response.Status.UNAUTHORIZED)
+                        .entity(new Respuestas("error", "TOKEN_MISSING", "Falta el token", 401))
+                        .build();
             }
 
-            baseDatos = JWTUtils.obtenerBaseDeDatosDesdeToken(token.substring(7));
+            // Si tiene "Bearer ", lo eliminamos
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7); // Quitamos "Bearer " para obtener solo el token
+            }
+
+            baseDatos = JWTUtils.obtenerBaseDeDatosDesdeToken(token);
             if (baseDatos == null) {
                 Respuestas respuesta = new Respuestas("error", "BASE_DE_DATOS_NO_ENCONTRADA", "No se pudo obtener la base de datos", 401);
                 return Response.status(Response.Status.UNAUTHORIZED).entity(respuesta).build();
@@ -526,13 +560,20 @@ public class UsuarioService {
         String baseDatos = null;
         try {
             // Obtener token y la base de datos
+            // Obtener token y la base de datos
             String token = headers.getHeaderString(HttpHeaders.AUTHORIZATION);
-            if (token == null || !token.startsWith("Bearer ")) {
-                Respuestas respuesta = new Respuestas("error", "TOKEN_MISSING", "Falta el token", 401);
-                return Response.status(Response.Status.UNAUTHORIZED).entity(respuesta).build();
+            if (token == null || token.isEmpty()) {
+                return Response.status(Response.Status.UNAUTHORIZED)
+                        .entity(new Respuestas("error", "TOKEN_MISSING", "Falta el token", 401))
+                        .build();
             }
 
-            baseDatos = JWTUtils.obtenerBaseDeDatosDesdeToken(token.substring(7));
+            // Si tiene "Bearer ", lo eliminamos
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7); // Quitamos "Bearer " para obtener solo el token
+            }
+
+            baseDatos = JWTUtils.obtenerBaseDeDatosDesdeToken(token);
             if (baseDatos == null) {
                 Respuestas respuesta = new Respuestas("error", "BASE_DE_DATOS_NO_ENCONTRADA", "No se pudo obtener la base de datos", 401);
                 return Response.status(Response.Status.UNAUTHORIZED).entity(respuesta).build();
@@ -590,13 +631,20 @@ public class UsuarioService {
         String baseDatos = null;
         try {
             // Obtener token y la base de datos
+            // Obtener token y la base de datos
             String token = headers.getHeaderString(HttpHeaders.AUTHORIZATION);
-            if (token == null || !token.startsWith("Bearer ")) {
-                Respuestas respuesta = new Respuestas("error", "TOKEN_MISSING", "Falta el token", 401);
-                return Response.status(Response.Status.UNAUTHORIZED).entity(respuesta).build();
+            if (token == null || token.isEmpty()) {
+                return Response.status(Response.Status.UNAUTHORIZED)
+                        .entity(new Respuestas("error", "TOKEN_MISSING", "Falta el token", 401))
+                        .build();
             }
 
-            baseDatos = JWTUtils.obtenerBaseDeDatosDesdeToken(token.substring(7));
+            // Si tiene "Bearer ", lo eliminamos
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7); // Quitamos "Bearer " para obtener solo el token
+            }
+
+            baseDatos = JWTUtils.obtenerBaseDeDatosDesdeToken(token);
             if (baseDatos == null) {
                 Respuestas respuesta = new Respuestas("error", "BASE_DE_DATOS_NO_ENCONTRADA", "No se pudo obtener la base de datos", 401);
                 return Response.status(Response.Status.UNAUTHORIZED).entity(respuesta).build();
