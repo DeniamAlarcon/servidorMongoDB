@@ -13,6 +13,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import org.bson.Document;
+import org.mindrot.jbcrypt.BCrypt;
 import utils.JWTUtils;
 import utils.MongoDBUtil;
 
@@ -46,7 +47,7 @@ public class LoginService {
                             .build();
                 }
 
-                // Verificar la contraseña
+                // Verificar la contraseña (comparamos la contraseña ingresada con el hash en la base de datos)
                 if (validarContrasenia(credentials.getPassword(), user.getString("password"))) {
                     // Reseteamos los intentos fallidos si la contraseña es correcta
                     userCollection.updateOne(new Document("correo", credentials.getCorreo()),
@@ -114,10 +115,9 @@ public class LoginService {
         }
     }
 
-    // Método para validar la contraseña (suponiendo que usas algún método de comparación)
+// Método para validar la contraseña con el hash almacenado
     private boolean validarContrasenia(String contrasenia, String hashedPassword) {
-        // Implementar la validación de la contraseña, por ejemplo, comparando el hash de las contraseñas
-        return contrasenia.equals(hashedPassword); // Esto es solo un ejemplo
+        return BCrypt.checkpw(contrasenia, hashedPassword); // Usamos BCrypt para validar la contraseña
     }
 
     public static class UserCredentials {

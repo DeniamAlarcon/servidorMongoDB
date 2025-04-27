@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.bson.Document;
 import org.bson.types.ObjectId;
+import org.mindrot.jbcrypt.BCrypt;
 import utils.JWTUtils;
 import utils.MongoDBUtil;
 
@@ -285,13 +286,13 @@ public class UsuarioService {
     @Produces(MediaType.APPLICATION_JSON)
     public Response agregarDato(
             @PathParam("coleccion") String coleccion,
-            List<Document> documentos, // Aceptamos una lista de documentos
+            Object body, // Aceptamos objeto genérico
             @Context HttpHeaders headers) {
 
         String baseDatos = null;
 
         try {
-            // Obtener token y la base de datos
+            // Obtener token y base de datos
             String token = headers.getHeaderString(HttpHeaders.AUTHORIZATION);
             if (token == null || token.isEmpty()) {
                 return Response.status(Response.Status.UNAUTHORIZED)
@@ -299,9 +300,8 @@ public class UsuarioService {
                         .build();
             }
 
-            // Si tiene "Bearer ", lo eliminamos
             if (token.startsWith("Bearer ")) {
-                token = token.substring(7); // Quitamos "Bearer " para obtener solo el token
+                token = token.substring(7);
             }
 
             baseDatos = JWTUtils.obtenerBaseDeDatosDesdeToken(token);
@@ -310,11 +310,13 @@ public class UsuarioService {
                         .entity(new Respuestas("error", "BASE_DE_DATOS_NO_ENCONTRADA", "No se pudo obtener la base de datos", 401))
                         .build();
             }
+
             if (baseDatos.contains("expirado")) {
                 return Response.status(Response.Status.UNAUTHORIZED)
                         .entity(new Respuestas("error", "TOKEN_EXPIRADO", "El token ha expirado", 401))
                         .build();
             }
+
             if (baseDatos.contains("inválido")) {
                 return Response.status(Response.Status.UNAUTHORIZED)
                         .entity(new Respuestas("error", "TOKEN_INVALIDO", "El token es inválido", 401))
@@ -345,28 +347,54 @@ public class UsuarioService {
                         .build();
             }
 
-            // Validar que los documentos no estén vacíos
-            if (documentos == null || documentos.isEmpty()) {
+            // Verificar si el cuerpo es un solo documento, una lista o el otro método que necesitas
+            if (body instanceof List) {
+                List<Document> documentos = ((List<?>) body).stream()
+                        .filter(obj -> obj instanceof Map) // Verifica que todos sean Map
+                        .map(obj -> {
+                            // Si el documento tiene un campo de password, hacer hashing
+                            Map<String, Object> map = (Map<String, Object>) obj;
+                            if (map.containsKey("password")) {
+                                String password = (String) map.get("password");
+                                String hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt()); // Hash de la contraseña
+                                map.put("password", hashedPassword); // Reemplaza la contraseña por el hash
+                            }
+                            return new Document(map);
+                        })
+                        .collect(Collectors.toList());
+
+                if (documentos.isEmpty()) {
+                    return Response.status(Response.Status.BAD_REQUEST)
+                            .entity(new Respuestas("error", "DOCUMENTO_VACIO", "No se recibieron documentos válidos", 400))
+                            .build();
+                }
+                collection.insertMany(documentos);
+                return Response.ok(new Respuestas("success", "Documentos agregados correctamente", 200)).build();
+            } else if (body instanceof Map) {
+                Map<String, Object> map = (Map<String, Object>) body;
+                // Si el documento tiene un campo de password, hacer hashing
+                if (map.containsKey("password")) {
+                    String password = (String) map.get("password");
+                    String hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt()); // Hash de la contraseña
+                    map.put("password", hashedPassword); // Reemplaza la contraseña por el hash
+                }
+                Document documento = new Document(map);
+                collection.insertOne(documento);
+                return Response.ok(new Respuestas("success", "Documento agregado correctamente", 200)).build();
+            } else if (body instanceof String) {
+                // Aquí puedes manejar el otro método que necesites (ejemplo, consulta especial)
+                return Response.ok(new Respuestas("success", "Se ejecutó el otro método correctamente", 200)).build();
+            } else {
                 return Response.status(Response.Status.BAD_REQUEST)
-                        .entity(new Respuestas("error", "DOCUMENTO_VACIO", "No se recibieron documentos", 400))
+                        .entity(new Respuestas("error", "FORMATO_INVALIDO", "El formato del documento no es válido", 400))
                         .build();
             }
 
-            // Insertar documentos en la colección
-            if (documentos.size() == 1) {
-                collection.insertOne(documentos.get(0));
-            } else {
-                collection.insertMany(documentos);
-            }
-
-            return Response.ok(new Respuestas("success", "Documentos agregados correctamente", 200)).build();
         } catch (MongoException e) {
-            //LogUtil.logError("Error en MongoDB al agregar documentos en la colección: " + coleccion, e, baseDatos);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                     .entity(new Respuestas("error", "MONGO_ERROR", "Error en la base de datos", 500))
                     .build();
         } catch (Exception e) {
-            //LogUtil.logError("Error inesperado al agregar documentos en la colección: " + coleccion, e, baseDatos);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                     .entity(new Respuestas("error", "INTERNAL_SERVER_ERROR", "Ocurrió un error al agregar los documentos", 500))
                     .build();
@@ -462,8 +490,6 @@ public class UsuarioService {
             Respuestas respuesta = new Respuestas("error", "INTERNAL_SERVER_ERROR", "Ocurrió un error al actualizar el documento", 500);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(respuesta).build();
         }
-        
-        
     }
 
     @DELETE
@@ -545,140 +571,6 @@ public class UsuarioService {
                 //LogUtil.logError("Error al eliminar documento en la colección: " + coleccion, e, "Desconocida");
             }
             Respuestas respuesta = new Respuestas("error", "INTERNAL_SERVER_ERROR", "Ocurrió un error al eliminar el documento", 500);
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(respuesta).build();
-        }
-    }
-
-    @POST
-    @Path("/crearColeccion/{coleccion}")
-    @Produces(MediaType.APPLICATION_JSON)
-    @Consumes(MediaType.APPLICATION_JSON)  // Aceptar cuerpo en JSON
-    public Response crearColeccion(
-            @PathParam("coleccion") String coleccion,
-            @Context HttpHeaders headers,
-            List<Map<String, Object>> documentos) {  // Parámetro para recibir los documentos en el cuerpo
-        String baseDatos = null;
-        try {
-            // Obtener token y la base de datos
-            // Obtener token y la base de datos
-            String token = headers.getHeaderString(HttpHeaders.AUTHORIZATION);
-            if (token == null || token.isEmpty()) {
-                return Response.status(Response.Status.UNAUTHORIZED)
-                        .entity(new Respuestas("error", "TOKEN_MISSING", "Falta el token", 401))
-                        .build();
-            }
-
-            // Si tiene "Bearer ", lo eliminamos
-            if (token.startsWith("Bearer ")) {
-                token = token.substring(7); // Quitamos "Bearer " para obtener solo el token
-            }
-
-            baseDatos = JWTUtils.obtenerBaseDeDatosDesdeToken(token);
-            if (baseDatos == null) {
-                Respuestas respuesta = new Respuestas("error", "BASE_DE_DATOS_NO_ENCONTRADA", "No se pudo obtener la base de datos", 401);
-                return Response.status(Response.Status.UNAUTHORIZED).entity(respuesta).build();
-            } else {
-                if (baseDatos.contains("expirado")) {
-                    Respuestas respuesta = new Respuestas("error", "TOKEN_EXPIRADO", "El token ha expirado", 401);
-                    return Response.status(Response.Status.UNAUTHORIZED).entity(respuesta).build();
-                } else {
-                    if (baseDatos.contains("inválido")) {
-                        Respuestas respuesta = new Respuestas("error", "TOKEN_INVALIDO", "El token es inválido", 401);
-                        return Response.status(Response.Status.UNAUTHORIZED).entity(respuesta).build();
-                    }
-                }
-            }
-
-            // Conectar a la base de datos correcta
-            MongoDatabase database = MongoDBUtil.getDatabase(baseDatos);
-
-            // Verificar si la colección ya existe
-            MongoIterable<String> colecciones = database.listCollectionNames();
-            if (StreamSupport.stream(colecciones.spliterator(), false).anyMatch(c -> c.equals(coleccion))) {
-                Respuestas respuesta = new Respuestas("error", "COLECCION_EXISTENTE", "La colección ya existe", 400);
-                return Response.status(Response.Status.BAD_REQUEST).entity(respuesta).build();
-            }
-
-            // Crear la nueva colección
-            database.createCollection(coleccion);
-
-            // Verificar si se enviaron documentos en el cuerpo
-            if (documentos != null && !documentos.isEmpty()) {
-                // Insertar documentos en la nueva colección
-                MongoCollection<Document> collection = database.getCollection(coleccion);
-                List<Document> documentosMongo = documentos.stream()
-                        .map(doc -> new Document(doc)) // Convertir cada mapa en un documento de Mongo
-                        .collect(Collectors.toList());
-                collection.insertMany(documentosMongo);
-            }
-
-            // Respuesta exitosa
-            Respuestas respuesta = new Respuestas("success", "Colección creada correctamente", 201);
-            return Response.status(Response.Status.CREATED).entity(respuesta).build();
-        } catch (Exception e) {
-            //LogUtil.logError("Error al crear la colección: " + coleccion, e, baseDatos != null ? baseDatos : "Desconocida");
-            Respuestas respuesta = new Respuestas("error", "INTERNAL_SERVER_ERROR", "Error al crear la colección", 500);
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(respuesta).build();
-        }
-    }
-
-    @DELETE
-    @Path("/eliminarColeccion/{coleccion}")
-    @Produces(MediaType.APPLICATION_JSON)
-    public Response eliminarColeccion(
-            @PathParam("coleccion") String coleccion,
-            @Context HttpHeaders headers) {
-        String baseDatos = null;
-        try {
-            // Obtener token y la base de datos
-            // Obtener token y la base de datos
-            String token = headers.getHeaderString(HttpHeaders.AUTHORIZATION);
-            if (token == null || token.isEmpty()) {
-                return Response.status(Response.Status.UNAUTHORIZED)
-                        .entity(new Respuestas("error", "TOKEN_MISSING", "Falta el token", 401))
-                        .build();
-            }
-
-            // Si tiene "Bearer ", lo eliminamos
-            if (token.startsWith("Bearer ")) {
-                token = token.substring(7); // Quitamos "Bearer " para obtener solo el token
-            }
-
-            baseDatos = JWTUtils.obtenerBaseDeDatosDesdeToken(token);
-            if (baseDatos == null) {
-                Respuestas respuesta = new Respuestas("error", "BASE_DE_DATOS_NO_ENCONTRADA", "No se pudo obtener la base de datos", 401);
-                return Response.status(Response.Status.UNAUTHORIZED).entity(respuesta).build();
-            } else {
-                if (baseDatos.contains("expirado")) {
-                    Respuestas respuesta = new Respuestas("error", "TOKEN_EXPIRADO", "El token ha expirado", 401);
-                    return Response.status(Response.Status.UNAUTHORIZED).entity(respuesta).build();
-                } else {
-                    if (baseDatos.contains("inválido")) {
-                        Respuestas respuesta = new Respuestas("error", "TOKEN_INVALIDO", "El token es inválido", 401);
-                        return Response.status(Response.Status.UNAUTHORIZED).entity(respuesta).build();
-                    }
-                }
-            }
-
-            // Conectar a la base de datos correcta
-            MongoDatabase database = MongoDBUtil.getDatabase(baseDatos);
-
-            // Verificar si la colección existe
-            MongoIterable<String> colecciones = database.listCollectionNames();
-            if (!StreamSupport.stream(colecciones.spliterator(), false).anyMatch(c -> c.equals(coleccion))) {
-                Respuestas respuesta = new Respuestas("error", "COLECCION_NO_EXISTE", "La colección no existe", 404);
-                return Response.status(Response.Status.NOT_FOUND).entity(respuesta).build();
-            }
-
-            // Eliminar la colección
-            database.getCollection(coleccion).drop();
-
-            // Respuesta exitosa
-            Respuestas respuesta = new Respuestas("success", "Colección eliminada correctamente", 200);
-            return Response.status(Response.Status.OK).entity(respuesta).build();
-        } catch (Exception e) {
-            //LogUtil.logError("Error al eliminar la colección: " + coleccion, e, baseDatos != null ? baseDatos : "Desconocida");
-            Respuestas respuesta = new Respuestas("error", "INTERNAL_SERVER_ERROR", "Error al eliminar la colección", 500);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(respuesta).build();
         }
     }
